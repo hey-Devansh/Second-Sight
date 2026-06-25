@@ -1,60 +1,247 @@
 # Second Sight
 
-Second Sight is a Python accessibility assistant prototype for visually impaired users. Phase 1 opens a webcam, runs YOLOv8 object detection in real time, draws bounding boxes with labels and confidence scores, shows FPS, and exits cleanly when `Q` is pressed.
+Second Sight is a real-time computer vision accessibility assistant designed to help visually impaired users better understand their surroundings.
 
-## Current Phase
+Using a webcam and on-device AI models, the system can detect objects, estimate their relative position and distance, prioritize potential obstacles, provide spoken alerts, and read visible text aloud through OCR.
 
-Phase 1 is implemented.
+The project focuses on low-cost, local-first accessibility using commonly available hardware.
 
-- Opens the default webcam.
-- Runs Ultralytics YOLOv8 object detection.
-- Draws bounding boxes, object names, and confidence scores.
-- Shows FPS on screen.
-- Logs startup, camera, model, and shutdown events.
-- Handles camera open/read failures gracefully.
+---
 
-## Project Structure
+## Features
+
+### Real-Time Object Detection
+
+* Detects objects using YOLOv8.
+* Processes a live webcam feed.
+* Draws bounding boxes and labels on detected objects.
+
+### Position Awareness
+
+Determines where an object is located relative to the user:
+
+* Left
+* Center
+* Right
+
+Example:
 
 ```text
-camera.py       # Webcam setup, frame reading, and release
-detection.py    # YOLOv8 model loading and detection
-main.py         # Application loop
-utils.py        # Logging, FPS, and keyboard helpers
-requirements.txt
-README.md
+Chair - Left
+Person - Center
 ```
 
-## Linux Setup
+### Distance Estimation
 
-Use Python 3.10 or newer.
+Approximates object distance using bounding box size.
+
+Distance categories:
+
+* Far
+* Medium
+* Near
+* Very Close
+
+Example:
+
+```text
+Person - Center - Very Close
+```
+
+### Obstacle Prioritization
+
+Objects are ranked according to their potential importance.
+
+Factors include:
+
+* Position
+* Distance
+
+Priority levels:
+
+* Low
+* Medium
+* High
+* Critical
+
+### Smart Alert System
+
+The application does not treat every object equally.
+
+It prioritizes meaningful hazards and generates alerts when necessary.
+
+Examples:
+
+```text
+Chair - Center - Very Close - Critical
+Person - Left - Near - High
+```
+
+### Speech Guidance
+
+Provides spoken feedback using offline text-to-speech.
+
+Examples:
+
+```text
+"Person ahead. Very close."
+
+"Chair on your left."
+```
+
+### Speech Queue Management
+
+Prevents audio spam by:
+
+* Suppressing duplicate messages
+* Managing speech cooldowns
+* Prioritizing critical alerts
+* Preventing overlapping speech
+
+### OCR Text Reading
+
+Reads visible text from the camera feed on demand.
+
+Press:
+
+```text
+R
+```
+
+to perform OCR on the current frame.
+
+Examples:
+
+```text
+Emergency Exit
+
+Welcome to Library
+
+Second Sight
+```
+
+OCR results can also be spoken aloud.
+
+---
+
+## Tech Stack
+
+### Computer Vision
+
+* OpenCV
+* Ultralytics YOLOv8
+
+### OCR
+
+* Tesseract OCR
+* pytesseract
+
+### Speech
+
+* pyttsx3
+
+### Language
+
+* Python 3
+
+---
+
+## Installation
+
+Clone the repository:
 
 ```bash
-python3 --version
+git clone https://github.com/hey-Devansh/Second-Sight.git
+cd Second-Sight
+```
+
+Create a virtual environment:
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade pip
+```
+
+Install Python dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-On some Linux systems, OpenCV needs system webcam/display libraries:
+Install Tesseract OCR:
+
+Ubuntu/Debian:
 
 ```bash
 sudo apt update
-sudo apt install python3-opencv v4l-utils
+sudo apt install tesseract-ocr
 ```
 
-The first run may download the YOLOv8 nano model file, `yolov8n.pt`, if it is not already present.
+Verify installation:
 
-## Run
+```bash
+tesseract --version
+```
+
+---
+
+## Usage
+
+Run:
 
 ```bash
 python main.py
 ```
 
-Click the video window and press `Q` to quit.
+Controls:
 
-## Notes
+| Key | Action                      |
+| --- | --------------------------- |
+| Q   | Quit application            |
+| R   | Read visible text using OCR |
 
-- The default camera index is `0`. If your webcam uses a different index, update `Camera(camera_index=0)` in `main.py`.
-- `yolov8n.pt` is used because it is the smallest YOLOv8 model and is a good starting point for CPU performance.
-- Future phases should add position awareness, offline speech, distance estimation, OCR mode, scene description, and voice commands without turning `main.py` into a large monolithic file.
+---
+
+## Project Structure
+
+```text
+Second-Sight/
+│
+├── main.py
+├── camera.py
+├── detection.py
+├── awareness.py
+├── speech.py
+├── ocr.py
+├── utils.py
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Future Improvements
+
+Planned ideas include:
+
+* Scene understanding
+* Navigation guidance
+* Spatial audio feedback
+* Improved distance estimation
+* Mobile and Raspberry Pi support
+* Multi-language OCR and speech
+
+---
+
+## Disclaimer
+
+This project is currently a prototype and should not be relied upon as a primary safety device.
+
+Distance estimation and object recognition are approximations and may occasionally produce incorrect results.
+
+---
+
+## Author
+
+Developed by Devansh Sharma as a computer vision and accessibility project.
+
