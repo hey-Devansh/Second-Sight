@@ -120,6 +120,51 @@ def draw_fps(frame: MatLike, fps: float) -> None:
     )
 
 
+def get_object_position(center_x: float, frame_width: int) -> str:
+    """Classify an object's horizontal center as Left, Center, or Right."""
+    if frame_width <= 0:
+        raise ValueError("frame_width must be greater than zero.")
+
+    left_boundary = frame_width / 3
+    right_boundary = (frame_width * 2) / 3
+
+    if center_x < left_boundary:
+        return "Left"
+    if center_x < right_boundary:
+        return "Center"
+    return "Right"
+
+
+def estimate_distance(
+    box_width: float,
+    box_height: float,
+    frame_width: int,
+    frame_height: int,
+) -> str:
+    """Estimate object proximity from bounding-box size.
+
+    This is a lightweight heuristic, not true depth. The assumption is that an
+    object taking up more of the camera frame is generally closer to the user.
+    A future depth model can replace this function without changing callers.
+    """
+    if frame_width <= 0 or frame_height <= 0:
+        raise ValueError("frame dimensions must be greater than zero.")
+
+    safe_box_width = max(0.0, box_width)
+    safe_box_height = max(0.0, box_height)
+    box_area = safe_box_width * safe_box_height
+    frame_area = frame_width * frame_height
+    area_ratio = box_area / frame_area
+
+    if area_ratio >= 0.45:
+        return "Very Close"
+    if area_ratio >= 0.18:
+        return "Near"
+    if area_ratio >= 0.05:
+        return "Medium"
+    return "Far"
+
+
 def should_quit(key_code: int) -> bool:
     """Return True when the pressed key should close the application."""
     return key_code & 0xFF == ord("q")

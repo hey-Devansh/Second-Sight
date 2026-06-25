@@ -8,6 +8,8 @@ import cv2
 from cv2.typing import MatLike
 from ultralytics import YOLO
 
+from utils import estimate_distance, get_object_position
+
 
 class ObjectDetector:
     """Load a YOLOv8 model and run object detection on webcam frames."""
@@ -44,7 +46,7 @@ class ObjectDetector:
 
     def detect(self, frame: MatLike):
         """Run object detection and return Ultralytics results."""
-        return self.model.predict(
+        results = self.model.predict(
             frame,
             conf=self.confidence,
             imgsz=self.image_size,
@@ -52,6 +54,48 @@ class ObjectDetector:
             max_det=self.max_detections,
             verbose=False,
         )
+        self._add_detection_metadata(results)
+        return results
+
+    @staticmethod
+    def _add_detection_metadata(results) -> None:
+        """Attach reusable Second Sight details to each YOLO result."""
+        for result in results:
+            frame_height, frame_width = result.orig_shape
+            detections = []
+
+            if result.boxes is None:
+                result.second_sight_detections = detections
+                continue
+
+            for box in result.boxes:
+                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
+                center_x = (x1 + x2) / 2
+                box_width = x2 - x1
+                box_height = y2 - y1
+                confidence = float(box.conf[0])
+                class_id = int(box.cls[0])
+                class_name = result.names[class_id]
+                position = get_object_position(center_x, frame_width)
+                distance = estimate_distance(
+                    box_width,
+                    box_height,
+                    frame_width,
+                    frame_height,
+                )
+
+                detections.append(
+                    {
+                        "class_name": class_name,
+                        "confidence": confidence,
+                        "box": (x1, y1, x2, y2),
+                        "center_x": center_x,
+                        "position": position,
+                        "distance": distance,
+                    }
+                )
+
+            result.second_sight_detections = detections
 
     @staticmethod
     def draw_detections(results) -> MatLike:
@@ -67,11 +111,17 @@ class ObjectDetector:
         if boxes is None:
             return annotated_frame
 
-        for box in boxes:
-            x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
-            confidence = float(box.conf[0])
-            class_id = int(box.cls[0])
-            label = f"{result.names[class_id]} {confidence:.2f}"
+        if not hasattr(result, "second_sight_detections"):
+            ObjectDetector._add_detection_metadata(results)
+
+        detections = getattr(result, "second_sight_detections", [])
+
+        for detection in detections:
+            x1, y1, x2, y2 = detection["box"]
+            label = (
+                f"{detection['class_name']} - {detection['position']} - "
+                f"{detection['distance']} {detection['confidence']:.2f}"
+            )
 
             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
