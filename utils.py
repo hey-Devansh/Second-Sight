@@ -120,6 +120,38 @@ def draw_fps(frame: MatLike, fps: float) -> None:
     )
 
 
+def draw_alerts(frame: MatLike, alerts) -> None:
+    """Draw recent high-priority alerts near the top of the frame."""
+    for index, alert in enumerate(alerts[:3]):
+        message = f"ALERT: {alert.message}"
+        y_position = 65 + (index * 34)
+        color = (0, 0, 255) if alert.priority == "Critical" else (0, 215, 255)
+
+        text_size, baseline = cv2.getTextSize(
+            message,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.65,
+            2,
+        )
+        cv2.rectangle(
+            frame,
+            (8, y_position - text_size[1] - baseline - 6),
+            (text_size[0] + 18, y_position + baseline),
+            color,
+            -1,
+        )
+        cv2.putText(
+            frame,
+            message,
+            (12, y_position - 4),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.65,
+            (0, 0, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+
 def get_object_position(center_x: float, frame_width: int) -> str:
     """Classify an object's horizontal center as Left, Center, or Right."""
     if frame_width <= 0:

@@ -10,9 +10,17 @@ import logging
 
 import cv2
 
+from awareness import AlertManager
 from camera import Camera
 from detection import ObjectDetector
-from utils import FPSCounter, PipelineProfiler, configure_logging, draw_fps, should_quit
+from utils import (
+    FPSCounter,
+    PipelineProfiler,
+    configure_logging,
+    draw_alerts,
+    draw_fps,
+    should_quit,
+)
 
 
 WINDOW_NAME = "Second Sight - Phase 1"
@@ -27,6 +35,7 @@ def run() -> None:
 
     camera = Camera(camera_index=0)
     detector = ObjectDetector(model_path="yolov8n.pt")
+    alert_manager = AlertManager()
     fps_counter = FPSCounter()
     profiler = PipelineProfiler(report_interval=PROFILE_REPORT_INTERVAL)
 
@@ -44,10 +53,17 @@ def run() -> None:
             with profiler.section("yolo_inference"):
                 results = detector.detect(frame)
 
+            detections = getattr(results[0], "second_sight_detections", [])
+            alerts = alert_manager.process_detections(detections)
+            for alert in alerts:
+                log_method = logging.error if alert.priority == "Critical" else logging.warning
+                log_method("Alert: %s", alert.message)
+
             with profiler.section("drawing"):
                 annotated_frame = detector.draw_detections(results)
                 fps = fps_counter.update()
                 draw_fps(annotated_frame, fps)
+                draw_alerts(annotated_frame, alerts)
 
             # Tracking, OCR, audio, and background workers are not active in
             # Phase 1 yet. The profiler keeps those sections visible as 0.0ms

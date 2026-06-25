@@ -8,6 +8,7 @@ import cv2
 from cv2.typing import MatLike
 from ultralytics import YOLO
 
+from awareness import calculate_priority, calculate_priority_score
 from utils import estimate_distance, get_object_position
 
 
@@ -83,6 +84,11 @@ class ObjectDetector:
                     frame_width,
                     frame_height,
                 )
+                priority_score = calculate_priority_score(class_name, position, distance)
+                priority = calculate_priority(class_name, position, distance)
+                track_id = None
+                if getattr(box, "id", None) is not None:
+                    track_id = int(box.id[0].item())
 
                 detections.append(
                     {
@@ -92,6 +98,9 @@ class ObjectDetector:
                         "center_x": center_x,
                         "position": position,
                         "distance": distance,
+                        "priority": priority,
+                        "priority_score": priority_score,
+                        "track_id": track_id,
                     }
                 )
 
@@ -120,7 +129,8 @@ class ObjectDetector:
             x1, y1, x2, y2 = detection["box"]
             label = (
                 f"{detection['class_name']} - {detection['position']} - "
-                f"{detection['distance']} {detection['confidence']:.2f}"
+                f"{detection['distance']} - {detection['priority']} "
+                f"{detection['confidence']:.2f}"
             )
 
             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
