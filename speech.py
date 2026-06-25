@@ -78,12 +78,34 @@ class SpeechManager:
         for alert in alerts:
             self.submit_alert(alert)
 
+    def submit_message(
+        self,
+        message: str,
+        priority: str = "High",
+        alert_key: str = "system",
+    ) -> bool:
+        """Queue a non-object message through the same speech infrastructure."""
+        if not self.config.enabled:
+            return False
+
+        event = SpeechEvent(
+            message=message,
+            priority=priority,
+            alert_key=alert_key,
+            priority_rank=PRIORITY_RANKS.get(priority, 0),
+        )
+        return self._submit_event(event)
+
     def submit_alert(self, alert: Alert) -> bool:
         """Queue one alert for speech when cooldown rules allow it."""
         if not self.config.enabled:
             return False
 
         event = self._create_event(alert)
+        return self._submit_event(event)
+
+    def _submit_event(self, event: SpeechEvent) -> bool:
+        """Queue one speech event when cooldown rules allow it."""
         if event.priority_rank < PRIORITY_RANKS[self.config.minimum_priority]:
             return False
 

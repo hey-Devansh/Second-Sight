@@ -173,6 +173,35 @@ def draw_speech_status(frame: MatLike, status_text: str) -> None:
     )
 
 
+def draw_ocr_status(frame: MatLike, status_text: str, latest_text: str) -> None:
+    """Draw OCR status and the latest OCR result without covering detections."""
+    frame_height = frame.shape[0]
+    status_y = max(30, frame_height - 38)
+    result_y = max(30, frame_height - 60)
+    preview_text = latest_text[:80] if latest_text else "No OCR result"
+
+    cv2.putText(
+        frame,
+        f"OCR: {status_text}",
+        (10, status_y),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        preview_text,
+        (10, result_y),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
+
+
 def get_object_position(center_x: float, frame_width: int) -> str:
     """Classify an object's horizontal center as Left, Center, or Right."""
     if frame_width <= 0:

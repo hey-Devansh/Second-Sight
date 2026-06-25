@@ -13,6 +13,7 @@ import cv2
 from awareness import AlertManager
 from camera import Camera
 from detection import ObjectDetector
+from ocr import OCRManager
 from speech import SpeechManager
 from utils import (
     FPSCounter,
@@ -20,6 +21,7 @@ from utils import (
     configure_logging,
     draw_alerts,
     draw_fps,
+    draw_ocr_status,
     draw_speech_status,
     should_quit,
 )
@@ -39,6 +41,7 @@ def run() -> None:
     detector = ObjectDetector(model_path="yolov8n.pt")
     alert_manager = AlertManager()
     speech_manager = SpeechManager()
+    ocr_manager = OCRManager()
     fps_counter = FPSCounter()
     profiler = PipelineProfiler(report_interval=PROFILE_REPORT_INTERVAL)
 
@@ -65,12 +68,23 @@ def run() -> None:
 
             with profiler.section("speech_queue"):
                 speech_manager.submit_alerts(alerts)
+                for ocr_result in ocr_manager.get_completed_results():
+                    speech_manager.submit_message(
+                        ocr_result.speech_message,
+                        priority="High",
+                        alert_key=f"ocr:{ocr_result.speech_message}",
+                    )
 
             with profiler.section("drawing"):
                 annotated_frame = detector.draw_detections(results)
                 fps = fps_counter.update()
                 draw_fps(annotated_frame, fps)
                 draw_alerts(annotated_frame, alerts)
+                draw_ocr_status(
+                    annotated_frame,
+                    ocr_manager.get_status_text(),
+                    ocr_manager.get_latest_text(),
+                )
                 draw_speech_status(annotated_frame, speech_manager.get_status_text())
 
             # Speech runs downstream from alerts on its own worker thread. The
@@ -80,6 +94,12 @@ def run() -> None:
             with profiler.section("display_wait"):
                 cv2.imshow(WINDOW_NAME, annotated_frame)
                 key_code = cv2.waitKey(1)
+
+            if key_code & 0xFF == ord("r"):
+                if ocr_manager.request_read(frame):
+                    logging.info("OCR requested")
+                else:
+                    logging.info("OCR request ignored because OCR is busy")
 
             profiler.finish_frame()
 
@@ -92,6 +112,7 @@ def run() -> None:
     except KeyboardInterrupt:
         logging.info("Interrupted by user")
     finally:
+        ocr_manager.shutdown()
         speech_manager.shutdown()
         camera.release()
         cv2.destroyAllWindows()
