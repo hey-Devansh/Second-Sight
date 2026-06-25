@@ -13,12 +13,14 @@ import cv2
 from awareness import AlertManager
 from camera import Camera
 from detection import ObjectDetector
+from speech import SpeechManager
 from utils import (
     FPSCounter,
     PipelineProfiler,
     configure_logging,
     draw_alerts,
     draw_fps,
+    draw_speech_status,
     should_quit,
 )
 
@@ -36,6 +38,7 @@ def run() -> None:
     camera = Camera(camera_index=0)
     detector = ObjectDetector(model_path="yolov8n.pt")
     alert_manager = AlertManager()
+    speech_manager = SpeechManager()
     fps_counter = FPSCounter()
     profiler = PipelineProfiler(report_interval=PROFILE_REPORT_INTERVAL)
 
@@ -53,20 +56,25 @@ def run() -> None:
             with profiler.section("yolo_inference"):
                 results = detector.detect(frame)
 
-            detections = getattr(results[0], "second_sight_detections", [])
-            alerts = alert_manager.process_detections(detections)
-            for alert in alerts:
-                log_method = logging.error if alert.priority == "Critical" else logging.warning
-                log_method("Alert: %s", alert.message)
+            with profiler.section("alert_generation"):
+                detections = getattr(results[0], "second_sight_detections", [])
+                alerts = alert_manager.process_detections(detections)
+                for alert in alerts:
+                    log_method = logging.error if alert.priority == "Critical" else logging.warning
+                    log_method("Alert: %s", alert.message)
+
+            with profiler.section("speech_queue"):
+                speech_manager.submit_alerts(alerts)
 
             with profiler.section("drawing"):
                 annotated_frame = detector.draw_detections(results)
                 fps = fps_counter.update()
                 draw_fps(annotated_frame, fps)
                 draw_alerts(annotated_frame, alerts)
+                draw_speech_status(annotated_frame, speech_manager.get_status_text())
 
-            # Tracking, OCR, audio, and background workers are not active in
-            # Phase 1 yet. The profiler keeps those sections visible as 0.0ms
+            # Speech runs downstream from alerts on its own worker thread. The
+            # frame profiler still keeps future OCR/background sections visible
             # so later phases can be compared against this baseline.
 
             with profiler.section("display_wait"):
@@ -84,6 +92,7 @@ def run() -> None:
     except KeyboardInterrupt:
         logging.info("Interrupted by user")
     finally:
+        speech_manager.shutdown()
         camera.release()
         cv2.destroyAllWindows()
         logging.info("Second Sight stopped")

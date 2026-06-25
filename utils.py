@@ -78,6 +78,8 @@ class PipelineProfiler:
         active_stages = (
             "webcam_capture",
             "yolo_inference",
+            "alert_generation",
+            "speech_queue",
             "tracking",
             "drawing",
             "ocr",
@@ -91,12 +93,15 @@ class PipelineProfiler:
 
         logging.info(
             "Performance avg over %s frames | FPS %.1f | capture %.1fms | "
-            "YOLO %.1fms | tracking %.1fms | drawing %.1fms | OCR %.1fms | "
-            "audio %.1fms | display/wait %.1fms | background %.1fms",
+            "YOLO %.1fms | alerts %.1fms | speech queue %.1fms | "
+            "tracking %.1fms | drawing %.1fms | OCR %.1fms | audio %.1fms | "
+            "display/wait %.1fms | background %.1fms",
             self.report_interval,
             estimated_fps,
             stage_times["webcam_capture"],
             stage_times["yolo_inference"],
+            stage_times["alert_generation"],
+            stage_times["speech_queue"],
             stage_times["tracking"],
             stage_times["drawing"],
             stage_times["ocr"],
@@ -150,6 +155,22 @@ def draw_alerts(frame: MatLike, alerts) -> None:
             2,
             cv2.LINE_AA,
         )
+
+
+def draw_speech_status(frame: MatLike, status_text: str) -> None:
+    """Draw a small speech queue/status message for debugging."""
+    frame_height = frame.shape[0]
+    y_position = max(30, frame_height - 14)
+    cv2.putText(
+        frame,
+        status_text,
+        (10, y_position),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
 
 
 def get_object_position(center_x: float, frame_width: int) -> str:
